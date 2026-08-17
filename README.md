@@ -58,8 +58,8 @@ $$\Delta E = \sqrt{(L_1 - L_2)^2 + (a_1 - a_2)^2 + (b_1 - b_2)^2}$$
 ```
 3. **Cube-Root Non-Linearity & Oklab Projection**:
 ```math 
-   $$L' = \sqrt[3]{L}, \quad M' = \sqrt[3]{M}, \quad S' = \sqrt[3]{S}$$
-   $$\begin{bmatrix} L_{\text{oklab}} \\ a_{\text{oklab}} \\ b_{\text{oklab}} \end{bmatrix} = M_2 \cdot \begin{bmatrix} L' \\ M' \\ S' \end{bmatrix}$$
+   $$L' = \sqrt[3]{L}, \quad M' = \sqrt[3]{M}, \quad S' = \sqrt[3]{S}
+    \begin{bmatrix} L_{\text{oklab}} \\ a_{\text{oklab}} \\ b_{\text{oklab}} \end{bmatrix} = M_2 \cdot \begin{bmatrix} L' \\ M' \\ S' \end{bmatrix}$$
 ```
 4. **Polar Transformation to Oklch**:
    $$C = \sqrt{a^2 + b^2}, \quad h = \text{atan2}(b, a) \pmod{360^\circ}$$
