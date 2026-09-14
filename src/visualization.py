@@ -71,7 +71,7 @@ def render_harmony(base_block_path: Path, texture_folder: Path, harmony_palettes
     ax_base.set_aspect('equal')
 
     # --- right side: Harmony Rows ---
-    row_y_coords = [0.87, 0.67, 0.5, 0.23]  # Estimated vertical offsets for 4 rows
+    row_y_coords = [0.87, 0.67, 0.44, 0.21]  # Estimated vertical offsets for 4 rows
     harmony_rows = list(harmony_palettes.keys())
     for row_idx, harmony_name in enumerate(harmony_rows):
         block_names = harmony_palettes[harmony_name]
@@ -84,17 +84,41 @@ def render_harmony(base_block_path: Path, texture_folder: Path, harmony_palettes
             if block_name in texture_map:
                 with Image.open(texture_map[block_name]) as texture_img:
                     texture_rgba = texture_img.convert("RGBA")
+                    # Crop to default texture size: 16x16
+                    if texture_rgba.height > 16:
+                        texture_rgba = texture_rgba.crop((0, 0, 16, 16))
                     ax_swatch.imshow(texture_rgba, interpolation='nearest')
 
-            # Add a clean border around the swatch box
-            for spine in ax_swatch.spines.values():
-                spine.set_edgecolor('#333333')
-                spine.set_linewidth(1.5)
-
             ax_swatch.set_title(block_name.title().replace("_", " "), fontsize=10, pad=5)
+            ax_swatch.axis('off')
+            ax_swatch.set_aspect('equal')
 
         fig.text(0.35, row_y_coords[row_idx], f"{harmony_name.capitalize()}", va='center', fontsize=14, fontweight='bold')
 
     plt.suptitle("Minecraft Palette Harmonies", fontsize=16, fontweight='bold', y=0.98)
+    plt.tight_layout()
+    plt.show()
+
+
+def render_clusters(clusters: list, seed: int):
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 6))
+
+    cluster0 = oklab_2_srgb(clusters[0], is_float=True)
+    cluster1 = oklab_2_srgb(clusters[1], is_float=True)
+    cluster2 = oklab_2_srgb(clusters[2], is_float=True)
+
+    ax1.imshow(np.tile(cluster0, (16, 16, 1)), interpolation='nearest')
+    ax1.axis('off')
+    ax1.set_aspect(aspect="equal")
+
+    ax2.imshow(np.tile(cluster1, (16, 16, 1)), interpolation='nearest')
+    ax2.axis('off')
+    ax2.set_aspect(aspect="equal")
+
+    ax3.imshow(np.tile(cluster2, (16, 16, 1)), interpolation='nearest')
+    ax3.axis('off')
+    ax3.set_aspect(aspect="equal")
+
+    plt.suptitle(f"Seed: {seed}", fontsize=16, fontweight='bold', y=0.98)
     plt.tight_layout()
     plt.show()

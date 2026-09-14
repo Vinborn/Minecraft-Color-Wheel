@@ -7,12 +7,17 @@ from . import image_processing
 from .models import Oklab, Oklch, BlockData
 from .database import BlockDatabase
 
-def analysis_textures(version: str, textures_dir: Path, db_path: Path) -> BlockDatabase:
+
+def analysis_textures(version: str,
+                      textures_dir: Path,
+                      db_path: Path,
+                      overwrite: bool = False,
+                      remove_texture: bool = False) -> BlockDatabase:
     """
     Get all textures, calculate perceptual mean for each one, save data to database.
     """
     db = BlockDatabase(db_path)
-    if db.blocks:
+    if db.blocks and not overwrite:
         print(f"[+] The existing database has been loaded: {db_path.name}")
         return db
 
@@ -21,10 +26,14 @@ def analysis_textures(version: str, textures_dir: Path, db_path: Path) -> BlockD
     result_data: dict[str, BlockData] = {}
 
     for idx, file_path in enumerate(png_files):
+        # if "_top" in file_path.stem:
+        #     continue
         try:
             srgb_pixels = image_processing.texture_2_srgb(file_path)
-            # Skip not full/transparent block textures
+            # Skip or remove not full/transparent block textures
             if srgb_pixels.shape[0] < 256:
+                if remove_texture:
+                    remove_textures_from_folder(file_path=file_path)
                 continue
 
             oklab_pixels = color_spaces.srgb_2_oklab(srgb_pixels)
@@ -95,3 +104,33 @@ def generate_harmonies_for_block(target_block_name: str, db: BlockDatabase, glob
 
         resolved_palettes[harmony_name] = matched_blocks
     return resolved_palettes
+
+
+def remove_textures_from_folder(file_path: Path):
+    try:
+        file_path.unlink()
+        # Debug print
+        print(f"[*] The texture {file_path.name} has been removed!")
+    except FileNotFoundError:
+        print("[!] The file does not exist!")
+
+
+def clustering(target_block_name: str, textures_dir: Path, db: BlockDatabase) -> dict[int, tuple[list, list]]:
+    if target_block_name not in db.blocks:
+        raise ValueError(f"[!] Block {target_block_name} not found in database!")
+
+    png_files = list(textures_dir.glob("*.png"))
+
+    target_texture = png_files[db.texture_index(target_name=target_block_name)]
+
+    srgb_pixels = image_processing.texture_2_srgb(target_texture)
+
+    if srgb_pixels.shape[0] < 256:
+        raise ValueError("[!] SRGB image is too small!")
+
+    oklab_pixels = color_spaces.srgb_2_oklab(srgb_pixels)
+
+    cluster_dict: dict[int, tuple] = {}
+    for seed in range(15):
+        cluster_dict[seed] = image_processing.k_mean_random(oklab_pixels=oklab_pixels, seed=seed)
+    return cluster_dict

@@ -48,6 +48,9 @@ class BlockDatabase:
 
     def save(self, version: str, blocks_data: dict[str, BlockData]) -> None:
         """Saves in JSON scheme"""
+        if not blocks_data:
+            print("[!] Blocks data is empty!")
+            return
         self.version = version
         self.blocks = blocks_data
 
@@ -116,6 +119,15 @@ class BlockDatabase:
     def oklab_array(self, target_name: str) -> np.ndarray:
         """Converts the Oklab vector to a numpy array"""
         if target_name not in self._names_list or len(self._names_list) == 0:
+            # Debug print
+            print(f"{target_name} not in database!")
             return None
 
         return np.array(self.blocks[target_name].oklab)
+
+    def texture_index(self, target_name: str) -> int:
+        """Return the index of the texture corresponding to target_name"""
+        if target_name not in self._names_2_idx or len(self._names_2_idx) == 0:
+            return None
+
+        return self._names_2_idx[target_name]
