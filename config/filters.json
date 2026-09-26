@@ -1,5 +1,7 @@
 {
   "excluded_keywords": [
+    "_top",
+    "_bottom",
     "door",
     "leaves",
     "sapling",
