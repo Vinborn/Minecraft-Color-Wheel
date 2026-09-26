@@ -117,10 +117,6 @@ class BlockDatabase:
         # Calculate all distances at once using vector math
         distances = np.linalg.norm(self._matrix_oklab - target_vector_oklab, axis=1)
 
-        # Normalize single string input to tuple for unified set-like evaluation
-        if isinstance(exclude_names, str):
-            exclude_names = (exclude_names,)
-
         # Make distance inf for excluded block names
         # Vectorized infinity assignment using O(1) dict lookups
         if exclude_names and exclude_names in self._names_list:
