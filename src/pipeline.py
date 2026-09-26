@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from . import color_harmonies
 from . import color_spaces
 from . import image_processing
 
