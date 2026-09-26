@@ -19,10 +19,11 @@ class PaletteGenerator:
     def __init__(self, database: BlockDatabase) -> None:
         self.db = database
 
-    def _map_color_2_block(self, target_color: Oklch, exclude: set[str]) -> tuple[str, ...]:
-        block_name = self.db.find_closest_mc_texture(target_oklch=target_color, exclude_names=exclude)
-        exclude.add(block_name)
-        return block_name
+    def _map_color_2_block(self, colors: tuple[Oklch, ...], exclude: set[str]) -> tuple[str, ...]:
+        return tuple(
+            self.db.find_closest_mc_texture(target_oklch=color, exclude_names=exclude)
+            for color in colors[1:]
+        )
 
     def generate_harmonies(self, block_name: str, base_color: Oklch) -> HarmonyPalette:
         """Generates harmonies for a block, ensuring there are no duplicates within a single palette."""
