@@ -3,15 +3,12 @@ from .models import Oklch
 from .database import BlockDatabase
 from . import color_harmonies
 
-
 class HarmonyPalette(NamedTuple):
     """Immutable structure representing generated block harmonies."""
-    base_block: str
     complementary: tuple[str, ...]
     monochromatic: tuple[str, ...]
     analogous: tuple[str, ...]
     triadic: tuple[str, ...]
-
 
 class PaletteGenerator:
     """Calculates Oklch harmonies for a given block and maps them to nearest textures."""
@@ -19,6 +16,7 @@ class PaletteGenerator:
     def __init__(self, database: BlockDatabase) -> None:
         self.db = database
 
+    # TODO: EDIT for global exclusion
     def _map_color_2_block(self, colors: tuple[Oklch, ...], exclude: set[str]) -> tuple[str, ...]:
         return tuple(
             self.db.find_closest_mc_texture(target_oklch=color, exclude_names=exclude)
@@ -33,7 +31,6 @@ class PaletteGenerator:
         triadic = color_harmonies.triadic(base_color)
 
         return HarmonyPalette(
-            base_block=block_name,
             complementary=self._map_color_2_block(complementary, block_name),
             monochromatic=self._map_color_2_block(monochromatic, block_name),
             analogous=self._map_color_2_block(analogous, block_name),
