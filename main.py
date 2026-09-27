@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from src.pipeline import analysis_textures, generate_harmonies_for_block
-from src.visualization import render_texture_and_oklab_mean, render_harmony
+from src.visualization import render_harmony
 
 def main():
     BASE_DIR = Path(__file__).resolve().parent
@@ -22,8 +22,11 @@ def main():
 
     harmony_palettes = generate_harmonies_for_block(target_block_name=target_block_name.stem, db=db)
 
-    for palette in harmony_palettes:
-        print(f"{palette}")
+    for h_name, palette in harmony_palettes._asdict().items():
+        print(f"{h_name.upper()}: {palette}\n")
+
+    render_harmony(base_block_path=target_block_name, texture_folder=textures_side,
+                   harmony_palettes=harmony_palettes._asdict())
 
 if __name__ == "__main__":
     main()
