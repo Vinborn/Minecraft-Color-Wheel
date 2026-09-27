@@ -1,12 +1,16 @@
 import numpy as np
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-
 from PIL import Image
+
 from pathlib import Path
+from typing import Mapping, Sequence
+import logging
 
 from .color_spaces import oklab_2_srgb
 
+logger = logging.getLogger(__name__)
 
 def render_texture_and_oklab_mean(base_block_path: Path, oklab_mean: np.ndarray):
     """Renders original texture alongside its perceptual Oklab mean converted to sRGB."""
@@ -50,50 +54,87 @@ def render_solid_harmony_color(base_color, harmony_color):
     plt.tight_layout()
     plt.show()
 
-def render_harmony(base_block_path: Path, texture_folder: Path, harmony_palettes: dict[str, list[str]]):
-    """Renders harmonies with O(1) access to texture files."""
+
+def render_harmony(
+        base_block_path: Path,
+        texture_folder: Path,
+        harmony_palettes: Mapping[str, Sequence[str]]
+) -> None:
+    """Dynamically renders block harmonies with O(1) access to texture files."""
+    if not texture_folder.is_dir():
+        logger.error(f"[!] Texture directory does not exist: {texture_folder}")
+        raise NotADirectoryError(f"Missing texture folder: {texture_folder}")
+
+    if not harmony_palettes:
+        logger.warning("[!] Palette is empty!")
+
+    def _load_texture(path: Path) -> Image.Image | None:
+        try:
+            with Image.open(path) as img:
+                rgba = img.convert('RGBA')
+                return rgba if rgba.height == 16 else rgba.crop((0, 0, 16, 16))
+        except Exception as e:
+            logger.error(f"[!] Failed to read file {path.name}: {e}")
+            return None
+
+    width_multiplier = 2.2
+    height_multiplier = 1.7
+
     # Create a texture hash map in advance to prevent a recursive disk search inside the loop
     texture_map = {texture.stem: texture for texture in texture_folder.glob("*.png")}
 
-    # 12x6 inches = 1152×576 px
-    # 4 rows = complementary, monochromatic, analogous and triadic
-    fig = plt.figure(figsize=(12, 6))
-    gs = gridspec.GridSpec(4, 6, figure=fig)
+    rows = len(harmony_palettes)
+    max_cols_in_row = max(len(blocks) for blocks in harmony_palettes.values())
+    # total columns: 2 for base color, 1 for harmony names
+    total_cols = 3 + max_cols_in_row
+
+    # dynamic window size
+    fig = plt.figure(figsize=(width_multiplier * total_cols, height_multiplier * rows))
+    grid = gridspec.GridSpec(nrows=rows, ncols=total_cols, figure=fig)
 
     # --- left side: base block texture ---
-    ax_base = fig.add_subplot(gs[:, :2])
+    ax_base = fig.add_subplot(grid[:, :2])
     if base_block_path.exists():
-        with Image.open(base_block_path) as base_img:
-            texture_rgba = base_img.convert('RGBA')
-            ax_base.imshow(texture_rgba, interpolation='nearest')
-    ax_base.set_title(f"Base: {base_block_path.stem.title().replace("_", " ")}", fontsize=15, fontweight='bold', pad=10)
+        base_img = _load_texture(base_block_path)
+        if base_img:
+            ax_base.imshow(base_img, interpolation='nearest')
+
+    ax_base.set_title(
+        f"Base:\n{base_block_path.stem.replace('_', ' ').title()}",
+        fontsize=15,
+        fontweight='bold',
+        pad=10
+    )
     ax_base.axis('off')
     ax_base.set_aspect('equal')
 
-    # --- right side: Harmony Rows ---
-    row_y_coords = [0.87, 0.67, 0.44, 0.21]  # Estimated vertical offsets for 4 rows
-    harmony_rows = list(harmony_palettes.keys())
-    for row_idx, harmony_name in enumerate(harmony_rows):
-        block_names = harmony_palettes[harmony_name]
+    # --- right side: harmony palettes ---
+    for row_idx, (harmony_name, palette) in enumerate(harmony_palettes.items()):
+        # Allocate an entire cell in the GridSpec for the text
+        ax_text = fig.add_subplot(grid[row_idx, 2])
+        ax_text.text(
+            0.5, 0.5,
+            harmony_name.capitalize(),
+            va='center', ha='center',
+            fontsize=14, fontweight='bold'
+        )
+        ax_text.axis('off')
 
-        for col_idx, block_name in enumerate(block_names):
+        for col_idx, block_name in enumerate(palette):
             col_pos = 3 + col_idx
-            ax_swatch = fig.add_subplot(gs[row_idx, col_pos])
+            ax_swatch = fig.add_subplot(grid[row_idx, col_pos])
 
-            # O(1) file search using a hash map instead of iterative scans
-            if block_name in texture_map:
-                with Image.open(texture_map[block_name]) as texture_img:
-                    texture_rgba = texture_img.convert("RGBA")
-                    # Crop to default texture size: 16x16
-                    if texture_rgba.height > 16:
-                        texture_rgba = texture_rgba.crop((0, 0, 16, 16))
-                    ax_swatch.imshow(texture_rgba, interpolation='nearest')
+            block_path = texture_map.get(block_name)
+            if block_path:
+                swatch_img = _load_texture(block_path)
+                if swatch_img:
+                    ax_swatch.imshow(swatch_img, interpolation='nearest')
+            else:
+                logger.debug(f"Texture for {block_name} was not found in map.")
 
-            ax_swatch.set_title(block_name.title().replace("_", " "), fontsize=10, pad=5)
+            ax_swatch.set_title(block_name.replace('_', ' ').title(), fontsize=10, pad=5)
             ax_swatch.axis('off')
             ax_swatch.set_aspect('equal')
-
-        fig.text(0.35, row_y_coords[row_idx], f"{harmony_name.capitalize()}", va='center', fontsize=14, fontweight='bold')
 
     plt.suptitle("Minecraft Palette Harmonies", fontsize=16, fontweight='bold', y=0.98)
     plt.tight_layout()
