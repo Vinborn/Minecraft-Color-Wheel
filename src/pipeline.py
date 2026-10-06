@@ -52,6 +52,8 @@ def analysis_textures(version: str, textures_dir: Path, db_path: Path,
                     weight=float(weight),
                 ))
 
+            cluster_obj.sort(key=lambda c: c.weight, reverse=True)
+
             # Extract dominant color for simple harmonies
             dominant_id = image_processing.extract_dominant_cluster_index(weights=weights)
             dominant_cluster: ColorCluster = cluster_obj[dominant_id]
