@@ -2,7 +2,6 @@ import numpy as np
 from PIL import Image
 from pathlib import Path
 
-# TODO: crop images (like respawn_anchor_top.png) to 16x16 pixels
 def texture_2_srgb(image_path: Path, ignore_transparent:bool=True, alpha_threshold:int=128) -> np.ndarray:
     """
     Loads a PNG texture and returns a single list of sRGB values [R, G, B].
@@ -112,3 +111,106 @@ def k_mean_random(oklab_pixels: np.ndarray, seed: int = 85, k: int = 3) -> tuple
         iterations += 1
 
     return curr_centroids, cluster_weights
+
+
+def kmean_oklab(oklab_pixels: np.ndarray, seed: int = 85, k: int = 3) -> tuple[np.ndarray, np.ndarray]:
+    """
+    K-means++ is an intelligent initialization method
+    that selects initial centroids based on the distribution of data points.
+    """
+    n: int = oklab_pixels.shape[0]
+    rng = np.random.default_rng(seed=seed)
+
+    # Choose a random scalar index
+    first_centroid_id = rng.integers(0, n)
+
+    curr_centroids: np.ndarray[tuple] = np.array(
+        [oklab_pixels[first_centroid_id], ], dtype=np.float32
+    )
+    pixels_sq = np.sum(oklab_pixels ** 2, axis=1, keepdims=True)
+
+    while len(curr_centroids) < k:
+        centroids_sq = np.sum(curr_centroids ** 2, axis=1)
+        dot_product = np.dot(oklab_pixels, curr_centroids.T)
+        distances_sq = pixels_sq - 2 * dot_product + centroids_sq
+        distances_sq = np.maximum(distances_sq, 0)  # correctness for negative floating-point precision
+
+        min_distances_sq = np.min(distances_sq, axis=1)
+
+        distance_sum = np.sum(min_distances_sq, axis=0)
+
+        if distance_sum == 0:
+            # All pixels have zero distance to an existing centroid.
+            # No meaningful weighted selection is possible.
+            break
+
+        weights = min_distances_sq / distance_sum
+
+        new_centroid_id = rng.choice(a=n, p=weights)
+        curr_centroids = np.vstack([
+            curr_centroids,
+            oklab_pixels[new_centroid_id]
+        ])
+
+    cluster_weights: np.ndarray = []
+    max_iterations: int = 11  # optimal number for max convergence
+    iterations: int = 0
+
+    while iterations < max_iterations:
+        # Assign pixels to cluster
+        centroids_sq = np.sum(curr_centroids ** 2, axis=1)
+        dot_product = np.dot(oklab_pixels, curr_centroids.T)
+        distances_sq = pixels_sq - 2 * dot_product + centroids_sq
+        distances_sq = np.maximum(distances_sq, 0)  # correctness for negative floating-point precision
+
+        # Vectorized assignment
+        assignments = np.argmin(distances_sq, axis=1)
+
+        # Count cluster sizes
+        cluster_sizes = np.bincount(assignments, minlength=k)
+
+        # Calculate cluster weights
+        cluster_weights = cluster_sizes / n  # [size / n for size in cluster_sizes]
+
+        # Handle empty clusters
+        zero_indices = np.where(cluster_sizes == 0)[0]
+        if len(zero_indices) > 0:
+            # Work on a copy so we can exclude already-selected pixels
+            min_distances_sq = np.min(distances_sq, axis=1)
+            farthest_distances = min_distances_sq.copy()
+
+            # Reinitialize the empty clusters with the farthest pixel id from its nearest centroid
+            for z_idx in zero_indices:
+                farthest_id = np.argmax(farthest_distances)
+                curr_centroids[z_idx] = oklab_pixels[farthest_id]
+
+                # Don't select the same pixel again
+                farthest_distances[farthest_id] = -1
+            iterations += 1
+            continue
+
+        # Calculating new centroid for each cluster
+        new_centroids = np.zeros((k, 3), dtype=np.float32)
+        np.add.at(new_centroids, assignments, oklab_pixels)
+
+        # broadcasting division instead of the three manual loops
+        new_centroids /= cluster_sizes[:, np.newaxis]
+
+        # Check if the centroids are the same
+        if np.allclose(a=new_centroids, b=curr_centroids):
+            return new_centroids, cluster_weights  # Return new_centroids because they are the result of the current iteration
+
+        curr_centroids = new_centroids
+        iterations += 1
+
+    return curr_centroids, cluster_weights
+
+
+def extract_dominant_cluster_index(weights: np.ndarray) -> np.ndarray:
+    """
+    Returns the centroid with the highest weight (the dominant color).
+    """
+    if weights.size == 0:
+        raise ValueError("[!] Weights array is empty. K-Means failed to produce clusters.")
+
+    return int(np.argmax(weights))

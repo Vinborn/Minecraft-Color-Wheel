@@ -22,27 +22,21 @@ def clean_directory(folder_path:Path):
     folder_path.mkdir(parents=True, exist_ok=True)
 
 def jar_2_textures(jar_path:Path, texture_dir:Path, config_path:Path) -> str | None:
-    # Convert string paths to modern Path objects
-    jar_file = Path(jar_path)
-    texture_folder = Path(texture_dir) # e.g., ../textures/1.21.4, ../textures/1.20.1
-
     # Check if the .jar file exists
-    if not jar_file.exists():
+    if not jar_path.exists():
         print("Error: Jar File Not Found")
         return None
 
     # Clear out all old textures
-    clean_directory(texture_folder)
+    clean_directory(texture_dir)
 
     # Load filter keywords from json
     keywords = load_filters(Path(config_path))
 
-    # Debug print
-    # print(f"Opening {jar_file.name}...")
     extracted_count  = 0
 
     # Open .jar archive
-    with zipfile.ZipFile(jar_file, 'r') as jar_archive:
+    with zipfile.ZipFile(jar_path, 'r') as jar_archive:
         # Loop through every file path inside the .jar
         for file in jar_archive.namelist():
             # Filter only PNGs
@@ -52,7 +46,7 @@ def jar_2_textures(jar_path:Path, texture_dir:Path, config_path:Path) -> str | N
                 # Filter check
                 if any(word in texture_name for word in keywords): continue
 
-                save_folder = texture_folder / texture_name # Create the final save destination
+                save_folder = texture_dir / texture_name  # Create the final save destination
 
                 # Read binary bytes from the jar and write them to export folder
                 with jar_archive.open(file) as texture_file:
@@ -61,8 +55,8 @@ def jar_2_textures(jar_path:Path, texture_dir:Path, config_path:Path) -> str | N
 
                 extracted_count += 1
     # Debug print
-    # print(f"Successfully extracted {extracted_count} block textures to '{texture_folder.absolute()}'!")
-    return jar_file.stem
+    # print(f"Successfully extracted {extracted_count} block textures to '{texture_dir.absolute()}'!")
+    return jar_path.stem
 
 def texture_finder(jar_path:str, key_word:str):
     """Find all textures with the given keyword."""
