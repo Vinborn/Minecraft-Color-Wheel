@@ -16,10 +16,10 @@
 - *Perceptual Color Processing (Oklab space)*
 - *Data Serialization*
 - *Harmony Engine (OkLch Rules)*
+- *K-Mean++ Clustering*
 
 ## 📝 Planned functionality
 - **The 60-30-10 Rule Palette Analyzer**
-- **K-Means Clustering**
 
 ---
 
